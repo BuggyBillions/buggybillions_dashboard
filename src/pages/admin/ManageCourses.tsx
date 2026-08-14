@@ -103,12 +103,15 @@ const ManageCourses: React.FC = () => {
     setIsSubmitting(true);
     try {
       const formData = new FormData();
+      // Laravel method spoofing: the API expects POST with _method=PUT
+      // for file-upload capable endpoints (see Postman collection).
+      formData.append("_method", "PUT");
       formData.append("title", data.title);
       formData.append("description", data.description);
       // Append empty image to satisfy backend requirement
       formData.append("image", "");
 
-      await api.put(`/api/courses/${selectedCourse.id}`, formData, {
+      await api.post(`/api/courses/${selectedCourse.id}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",

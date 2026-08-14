@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 interface CreateStackFormProps {
   initialData?: any;
@@ -17,39 +19,44 @@ const CreateStackForm: React.FC<CreateStackFormProps> = ({
   readOnly = false,
   isLoading = false,
 }) => {
-  const [formData, setFormData] = useState({
-    title: "",
-    courses: [] as string[],
-    description: "",
+  const formik = useFormik({
+    initialValues: {
+      title: initialData?.title || "",
+      courses: initialData?.courses
+        ? initialData.courses.map((c: any) =>
+            typeof c === "object" ? String(c.id) : String(c)
+          )
+        : initialData?.course_id
+        ? [String(initialData.course_id)]
+        : ([] as string[]),
+      description: initialData?.description || "",
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object({
+      title: Yup.string().required("Stack title is required"),
+      courses: Yup.array()
+        .of(Yup.string())
+        .min(1, "Select a course")
+        .required("Course is required"),
+      description: Yup.string().required("Description is required"),
+    }),
+    onSubmit: (values) => {
+      onSubmit(values);
+    },
   });
 
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        title: initialData.title || "",
-        courses: initialData.courses ? initialData.courses.map((c: any) => typeof c === 'object' ? String(c.id) : String(c)) : (initialData.course_id ? [String(initialData.course_id)] : []),
-        description: initialData.description || "",
-      });
-    }
-  }, [initialData]);
+  const inputClass = (touched: any, error: any) =>
+    `h-11.25 indent-2 border rounded-lg outline-0 disabled:bg-gray-100 ${
+      touched && error ? "border-red-500" : "border-black/15"
+    }`;
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
+  const errorText = (touched: any, error: any) =>
+    touched && error ? (
+      <p className="text-red-500 text-xs mt-1">{error}</p>
+    ) : null;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={formik.handleSubmit} className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-2 text-tetiary">
           {readOnly
@@ -69,13 +76,14 @@ const CreateStackForm: React.FC<CreateStackFormProps> = ({
           <input
             type="text"
             name="title"
-            value={formData.title}
-            onChange={handleChange}
+            value={formik.values.title}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.title, formik.errors.title)}
             placeholder="Enter stack title"
           />
+          {errorText(formik.touched.title, formik.errors.title)}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -83,17 +91,14 @@ const CreateStackForm: React.FC<CreateStackFormProps> = ({
           {courses.length > 0 ? (
             <select
               name="courses"
-              value={formData.courses.length > 0 ? formData.courses[0] : ""}
+              value={formik.values.courses.length > 0 ? formik.values.courses[0] : ""}
               onChange={(e) => {
                 const value = e.target.value;
-                setFormData((prev) => ({
-                  ...prev,
-                  courses: value ? [value] : [],
-                }));
+                formik.setFieldValue("courses", value ? [value] : []);
               }}
+              onBlur={formik.handleBlur}
               disabled={readOnly || isLoading}
-              required
-              className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+              className={inputClass(formik.touched.courses, formik.errors.courses)}
             >
               <option value="">Select a course</option>
               {courses.map((course) => (
@@ -106,33 +111,41 @@ const CreateStackForm: React.FC<CreateStackFormProps> = ({
             <input
               type="text"
               name="courses"
-              value={formData.courses.join(", ")}
+              value={formik.values.courses.join(", ")}
               onChange={(e) => {
-                const values = e.target.value.split(",").map((v) => v.trim()).filter((v) => v);
-                setFormData((prev) => ({ ...prev, courses: values }));
+                const values = e.target.value
+                  .split(",")
+                  .map((v) => v.trim())
+                  .filter((v) => v);
+                formik.setFieldValue("courses", values);
               }}
+              onBlur={formik.handleBlur}
               disabled={readOnly || isLoading}
-              required
-              className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+              className={inputClass(formik.touched.courses, formik.errors.courses)}
               placeholder="Enter course ID"
             />
           )}
+          {errorText(formik.touched.courses, formik.errors.courses)}
         </div>
-
       </div>
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-gray-700">Description</label>
         <textarea
           name="description"
-          value={formData.description}
-          onChange={handleChange}
+          value={formik.values.description}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           disabled={readOnly || isLoading}
-          required
           rows={5}
-          className="indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+          className={`indent-2 pt-2 border rounded-lg outline-0 disabled:bg-gray-100 resize-none ${
+            formik.touched.description && formik.errors.description
+              ? "border-red-500"
+              : "border-black/15"
+          }`}
           placeholder="Enter stack description"
         />
+        {errorText(formik.touched.description, formik.errors.description)}
       </div>
 
       <div className="flex justify-end gap-3 mt-4">

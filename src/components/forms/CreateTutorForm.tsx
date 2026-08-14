@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import api from "../../helpers/api";
 
 interface CreateTutorFormProps {
@@ -16,17 +18,6 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
   readOnly = false,
   isLoading = false,
 }) => {
-  const [formData, setFormData] = useState({
-    fullname: "",
-    username: "",
-    email: "",
-    mobile: "",
-    password: "",
-    department: "",
-    stack: "",
-    class: "",
-  });
-
   const [stacks, setStacks] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [loadingStacks, setLoadingStacks] = useState(false);
@@ -36,32 +27,6 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
     fetchStacks();
     fetchClasses();
   }, []);
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        fullname: initialData.fullname || "",
-        username: initialData.username || "",
-        email: initialData.email || "",
-        mobile: initialData.mobile || "",
-        password: initialData.password || "",
-        department: initialData.department || "",
-        stack: initialData.stack || initialData.stack_id || "",
-        class: initialData.class || initialData.class_id || "",
-      });
-    } else {
-      setFormData({
-        fullname: "",
-        username: "",
-        email: "",
-        mobile: "",
-        password: "",
-        department: "",
-        stack: "",
-        class: "",
-      });
-    }
-  }, [initialData]);
 
   const fetchStacks = async () => {
     setLoadingStacks(true);
@@ -103,30 +68,73 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
     }
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const formik = useFormik({
+    initialValues: initialData
+      ? {
+          fullname: initialData.fullname || "",
+          username: initialData.username || "",
+          email: initialData.email || "",
+          mobile: initialData.mobile || "",
+          password: initialData.password || "",
+          department: initialData.department || "",
+          stack: initialData.stack || initialData.stack_id || "",
+          class: initialData.class || initialData.class_id || "",
+        }
+      : {
+          fullname: "",
+          username: "",
+          email: "",
+          mobile: "",
+          password: "",
+          department: "",
+          stack: "",
+          class: "",
+        },
+    enableReinitialize: true,
+    validationSchema: Yup.object({
+      fullname: Yup.string().required("Full Name is required"),
+      username: Yup.string().required("Username is required"),
+      email: Yup.string()
+        .email("Enter a valid email address")
+        .required("Email is required"),
+      mobile: Yup.string()
+        .matches(/^\d{11}$/, "Mobile number must be exactly 11 digits")
+        .required("Mobile number is required"),
+      password: initialData
+        ? Yup.string()
+        : Yup.string().required("Password is required"),
+      department: Yup.string().required("Department is required"),
+      stack: Yup.string().required("Stack is required"),
+      class: Yup.string(),
+    }),
+    onSubmit: (values) => {
+      const submitData = {
+        ...values,
+        stack: values.stack,
+        class: values.class || undefined,
+        role: "tutor",
+      };
+      onSubmit(submitData);
+    },
+  });
+
+  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 11);
+    formik.setFieldValue("mobile", value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Transform data to match backend expectations
-    const submitData = {
-      ...formData,
-      stack: formData.stack, // This will be the stack_id
-      class: formData.class || undefined, // Optional class_id
-      role: "tutor"
-    };
-    onSubmit(submitData);
-  };
+  const inputClass = (touched: any, error: any) =>
+    `h-11.25 indent-2 border rounded-lg outline-0 disabled:bg-gray-100 ${
+      touched && error ? "border-red-500" : "border-black/15"
+    }`;
+
+  const errorText = (touched: any, error: any) =>
+    touched && error ? (
+      <p className="text-red-500 text-xs mt-1">{error}</p>
+    ) : null;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={formik.handleSubmit} className="space-y-4">
       <div>
         <h2 className="text-xl font-semibold mb-4 text-tetiary">
           {readOnly
@@ -143,13 +151,14 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
           <input
             type="text"
             name="fullname"
-            value={formData.fullname}
-            onChange={handleChange}
+            value={formik.values.fullname}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.fullname, formik.errors.fullname)}
             placeholder="Enter Full Name"
           />
+          {errorText(formik.touched.fullname, formik.errors.fullname)}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -157,13 +166,14 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
           <input
             type="text"
             name="username"
-            value={formData.username}
-            onChange={handleChange}
+            value={formik.values.username}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.username, formik.errors.username)}
             placeholder="Enter Username"
           />
+          {errorText(formik.touched.username, formik.errors.username)}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -171,13 +181,16 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
           <input
             type="tel"
             name="mobile"
-            value={formData.mobile}
-            onChange={handleChange}
+            value={formik.values.mobile}
+            onChange={handleMobileChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
-            placeholder="Enter Mobile Number"
+            maxLength={11}
+            inputMode="numeric"
+            className={inputClass(formik.touched.mobile, formik.errors.mobile)}
+            placeholder="Enter 11-digit Mobile Number"
           />
+          {errorText(formik.touched.mobile, formik.errors.mobile)}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -185,13 +198,14 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
           <input
             type="email"
             name="email"
-            value={formData.email}
-            onChange={handleChange}
+            value={formik.values.email}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.email, formik.errors.email)}
             placeholder="Enter Email Address"
           />
+          {errorText(formik.touched.email, formik.errors.email)}
         </div>
 
         {!readOnly && (
@@ -200,13 +214,14 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
             <input
               type="password"
               name="password"
-              value={formData.password}
-              onChange={handleChange}
-              disabled={readOnly || isLoading}
-              required={!initialData}
-              className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              disabled={isLoading}
+              className={inputClass(formik.touched.password, formik.errors.password)}
               placeholder={initialData ? "Leave blank to keep current" : "Enter Password"}
             />
+            {errorText(formik.touched.password, formik.errors.password)}
           </div>
         )}
 
@@ -214,11 +229,11 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
           <label className="text-sm font-medium text-gray-700">Stack</label>
           <select
             name="stack"
-            value={formData.stack}
-            onChange={handleChange}
+            value={formik.values.stack}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading || loadingStacks}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.stack, formik.errors.stack)}
           >
             <option value="">
               {loadingStacks ? "Loading stacks..." : "Select Stack"}
@@ -229,16 +244,18 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
               </option>
             ))}
           </select>
+          {errorText(formik.touched.stack, formik.errors.stack)}
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-gray-700">Class</label>
           <select
             name="class"
-            value={formData.class}
-            onChange={handleChange}
+            value={formik.values.class}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading || loadingClasses}
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.class, formik.errors.class)}
           >
             <option value="">
               {loadingClasses ? "Loading classes..." : "Select Class (Optional)"}
@@ -249,6 +266,7 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
               </option>
             ))}
           </select>
+          {errorText(formik.touched.class, formik.errors.class)}
         </div>
 
         <div className="flex flex-col gap-2 md:col-span-2">
@@ -256,13 +274,14 @@ const CreateTutorForm: React.FC<CreateTutorFormProps> = ({
           <input
             type="text"
             name="department"
-            value={formData.department}
-            onChange={handleChange}
+            value={formik.values.department}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.department, formik.errors.department)}
             placeholder="Enter Department (e.g., Software, Design, etc.)"
           />
+          {errorText(formik.touched.department, formik.errors.department)}
         </div>
       </div>
 

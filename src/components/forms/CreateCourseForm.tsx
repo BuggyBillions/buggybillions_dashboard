@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 interface CreateCourseFormProps {
   initialData?: any;
@@ -15,37 +17,33 @@ const CreateCourseForm: React.FC<CreateCourseFormProps> = ({
   readOnly = false,
   isLoading = false,
 }) => {
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
+  const formik = useFormik({
+    initialValues: {
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object({
+      title: Yup.string().required("Course title is required"),
+      description: Yup.string().required("Description is required"),
+    }),
+    onSubmit: (values) => {
+      onSubmit(values);
+    },
   });
 
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        title: initialData.title || "",
-        description: initialData.description || "",
-      });
-    }
-  }, [initialData]);
+  const inputClass = (touched: any, error: any) =>
+    `h-11.25 indent-2 border rounded-lg outline-0 disabled:bg-gray-100 ${
+      touched && error ? "border-red-500" : "border-black/15"
+    }`;
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
+  const errorText = (touched: any, error: any) =>
+    touched && error ? (
+      <p className="text-red-500 text-xs mt-1">{error}</p>
+    ) : null;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={formik.handleSubmit} className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-2 text-tetiary">
           {readOnly
@@ -65,13 +63,14 @@ const CreateCourseForm: React.FC<CreateCourseFormProps> = ({
           <input
             type="text"
             name="title"
-            value={formData.title}
-            onChange={handleChange}
+            value={formik.values.title}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.title, formik.errors.title)}
             placeholder="Enter course title"
           />
+          {errorText(formik.touched.title, formik.errors.title)}
         </div>
       </div>
 
@@ -79,14 +78,19 @@ const CreateCourseForm: React.FC<CreateCourseFormProps> = ({
         <label className="text-sm font-medium text-gray-700">Description</label>
         <textarea
           name="description"
-          value={formData.description}
-          onChange={handleChange}
+          value={formik.values.description}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           disabled={readOnly || isLoading}
-          required
           rows={5}
-          className="indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+          className={`indent-2 pt-2 border rounded-lg outline-0 disabled:bg-gray-100 resize-none ${
+            formik.touched.description && formik.errors.description
+              ? "border-red-500"
+              : "border-black/15"
+          }`}
           placeholder="Enter course description"
         />
+        {errorText(formik.touched.description, formik.errors.description)}
       </div>
 
       <div className="flex justify-end gap-3 mt-4">
