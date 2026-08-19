@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import api from "../../helpers/api";
 
 interface CreateStudentFormProps {
@@ -27,7 +29,6 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
   readOnly = false,
   isLoading = false,
 }) => {
-  const [formData, setFormData] = useState({ ...defaultFormState });
   const [stacks, setStacks] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [loadingStacks, setLoadingStacks] = useState(false);
@@ -37,26 +38,6 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
     fetchStacks();
     fetchClasses();
   }, []);
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        fullname: initialData.fullname || "",
-        username: initialData.username || "",
-        email: initialData.email || "",
-        mobile: initialData.mobile || "",
-        password: "",
-        department: initialData.department || "",
-        stack: initialData.stack || initialData.stack_id || "",
-        student_class_id:
-          initialData.student_class_id ||
-          initialData.student_class?.id ||
-          "",
-      });
-    } else {
-      setFormData({ ...defaultFormState });
-    }
-  }, [initialData]);
 
   const fetchStacks = async () => {
     setLoadingStacks(true);
@@ -102,31 +83,68 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
     }
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const formik = useFormik({
+    initialValues: initialData
+      ? {
+          fullname: initialData.fullname || "",
+          username: initialData.username || "",
+          email: initialData.email || "",
+          mobile: initialData.mobile || "",
+          password: "",
+          department: initialData.department || "",
+          stack: initialData.stack || initialData.stack_id || "",
+          student_class_id:
+            initialData.student_class_id ||
+            initialData.student_class?.id ||
+            "",
+        }
+      : { ...defaultFormState },
+    enableReinitialize: true,
+    validationSchema: Yup.object({
+      fullname: Yup.string().required("Full Name is required"),
+      username: Yup.string().required("Username is required"),
+      email: Yup.string()
+        .email("Enter a valid email address")
+        .required("Email is required"),
+      mobile: Yup.string()
+        .matches(/^\d{11}$/, "Mobile number must be exactly 11 digits")
+        .required("Mobile number is required"),
+      password: initialData
+        ? Yup.string()
+        : Yup.string().required("Password is required"),
+      department: Yup.string().required("Department is required"),
+      stack: Yup.string().required("Stack is required"),
+      student_class_id: Yup.string(),
+    }),
+    onSubmit: (values) => {
+      const submitData = {
+        ...values,
+        class_id: values.student_class_id,
+        stack: values.stack,
+        role: "student",
+      };
+
+      onSubmit(submitData);
+    },
+  });
+
+  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 11);
+    formik.setFieldValue("mobile", value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const inputClass = (touched: any, error: any) =>
+    `h-11.25 indent-2 border rounded-lg outline-0 disabled:bg-gray-100 ${
+      touched && error ? "border-red-500" : "border-black/15"
+    }`;
 
-    const submitData = {
-      ...formData,
-      class_id: formData.student_class_id, // Added this in case the backend expects class_id instead of student_class_id
-      stack: formData.stack,
-      role: "student",
-    };
-
-    onSubmit(submitData);
-  };
+  const errorText = (touched: any, error: any) =>
+    touched && error ? (
+      <p className="text-red-500 text-xs mt-1">{error}</p>
+    ) : null;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={formik.handleSubmit} className="space-y-4">
       <div>
         <h2 className="text-xl font-semibold mb-4 text-tetiary">
           {readOnly
@@ -144,13 +162,14 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
           <input
             type="text"
             name="fullname"
-            value={formData.fullname}
-            onChange={handleChange}
+            value={formik.values.fullname}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.fullname, formik.errors.fullname)}
             placeholder="Enter Full Name"
           />
+          {errorText(formik.touched.fullname, formik.errors.fullname)}
         </div>
 
         {/* Username */}
@@ -159,13 +178,14 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
           <input
             type="text"
             name="username"
-            value={formData.username}
-            onChange={handleChange}
+            value={formik.values.username}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.username, formik.errors.username)}
             placeholder="Enter Username"
           />
+          {errorText(formik.touched.username, formik.errors.username)}
         </div>
 
         {/* Email */}
@@ -174,13 +194,14 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
           <input
             type="email"
             name="email"
-            value={formData.email}
-            onChange={handleChange}
+            value={formik.values.email}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.email, formik.errors.email)}
             placeholder="Enter Email Address"
           />
+          {errorText(formik.touched.email, formik.errors.email)}
         </div>
 
         {/* Mobile */}
@@ -189,13 +210,16 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
           <input
             type="tel"
             name="mobile"
-            value={formData.mobile}
-            onChange={handleChange}
+            value={formik.values.mobile}
+            onChange={handleMobileChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
-            placeholder="Enter Mobile Number"
+            maxLength={11}
+            inputMode="numeric"
+            className={inputClass(formik.touched.mobile, formik.errors.mobile)}
+            placeholder="Enter 11-digit Mobile Number"
           />
+          {errorText(formik.touched.mobile, formik.errors.mobile)}
         </div>
 
         {/* Password */}
@@ -207,15 +231,16 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
             <input
               type="password"
               name="password"
-              value={formData.password}
-              onChange={handleChange}
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               disabled={isLoading}
-              required={!initialData}
-              className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+              className={inputClass(formik.touched.password, formik.errors.password)}
               placeholder={
                 initialData ? "Leave blank to keep current" : "Enter Password"
               }
             />
+            {errorText(formik.touched.password, formik.errors.password)}
           </div>
         )}
 
@@ -224,11 +249,11 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
           <label className="text-sm font-medium text-gray-700">Stack</label>
           <select
             name="stack"
-            value={formData.stack}
-            onChange={handleChange}
+            value={formik.values.stack}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading || loadingStacks}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.stack, formik.errors.stack)}
           >
             <option value="">
               {loadingStacks ? "Loading stacks..." : "Select Stack"}
@@ -239,6 +264,7 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
               </option>
             ))}
           </select>
+          {errorText(formik.touched.stack, formik.errors.stack)}
         </div>
 
         {/* Class */}
@@ -248,10 +274,14 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
           </label>
           <select
             name="student_class_id"
-            value={formData.student_class_id}
-            onChange={handleChange}
+            value={formik.values.student_class_id}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading || loadingClasses}
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(
+              formik.touched.student_class_id,
+              formik.errors.student_class_id
+            )}
           >
             <option value="">
               {loadingClasses ? "Loading classes..." : "Select Class"}
@@ -262,6 +292,10 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
               </option>
             ))}
           </select>
+          {errorText(
+            formik.touched.student_class_id,
+            formik.errors.student_class_id
+          )}
         </div>
 
         {/* Department */}
@@ -272,13 +306,14 @@ const CreateStudentForm: React.FC<CreateStudentFormProps> = ({
           <input
             type="text"
             name="department"
-            value={formData.department}
-            onChange={handleChange}
+            value={formik.values.department}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             disabled={readOnly || isLoading}
-            required
-            className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+            className={inputClass(formik.touched.department, formik.errors.department)}
             placeholder="Enter Department"
           />
+          {errorText(formik.touched.department, formik.errors.department)}
         </div>
       </div>
 

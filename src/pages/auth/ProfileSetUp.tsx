@@ -39,7 +39,9 @@ const ProfileSetUp: React.FC = () => {
       bug_id: Yup.string().required("Bug ID is required"),
       fullname: Yup.string().required("Full Name is required"),
       username: Yup.string().required("Username is required"),
-      mobile: Yup.string().required("Mobile is required"),
+      mobile: Yup.string()
+        .matches(/^\d{11}$/, "Mobile number must be exactly 11 digits")
+        .required("Mobile is required"),
       email: Yup.string().email("Invalid email").required("Email is required"),
     }),
 
@@ -117,18 +119,34 @@ const ProfileSetUp: React.FC = () => {
             </div>
 
             {/* Mobile */}
-            <div className="flex items-center gap-2 h-12.5 px-4 rounded-lg bg-gray-200">
+            <div
+              className={`flex items-center gap-2 h-12.5 px-4 rounded-lg bg-gray-200 ${
+                formik.touched.mobile && formik.errors.mobile
+                  ? "border border-red-500"
+                  : ""
+              }`}
+            >
               <FiPhone />
               <input
                 type="text"
                 name="mobile"
                 placeholder="Mobile"
+                inputMode="numeric"
+                maxLength={11}
                 className="w-full h-full outline-0 border-0 bg-transparent"
-                onChange={formik.handleChange}
+                onChange={(e) => {
+                  formik.setFieldValue(
+                    "mobile",
+                    e.target.value.replace(/\D/g, "").slice(0, 11)
+                  );
+                }}
                 onBlur={formik.handleBlur}
                 value={formik.values.mobile}
               />
             </div>
+            {formik.touched.mobile && formik.errors.mobile && (
+              <p className="text-red-500 text-sm">{formik.errors.mobile}</p>
+            )}
 
             {/* Email */}
             <div className="flex items-center gap-2 h-12.5 px-4 rounded-lg bg-gray-200">

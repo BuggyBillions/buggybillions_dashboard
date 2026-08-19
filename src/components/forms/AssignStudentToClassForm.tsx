@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 interface ClassOption {
   id: string;
@@ -20,19 +22,21 @@ const AssignStudentToClassForm: React.FC<AssignStudentToClassFormProps> = ({
   isLoading = false,
   studentName,
 }) => {
-  const [classId, setClassId] = useState("");
-
-  useEffect(() => {
-    setClassId("");
-  }, [classOptions]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({ student_class_id: classId });
-  };
+  const formik = useFormik({
+    initialValues: {
+      student_class_id: "",
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object({
+      student_class_id: Yup.string().required("Select a class"),
+    }),
+    onSubmit: (values) => {
+      onSubmit(values);
+    },
+  });
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={formik.handleSubmit} className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-2 text-tetiary">
           Assign {studentName || "Student"} to Class
@@ -46,11 +50,15 @@ const AssignStudentToClassForm: React.FC<AssignStudentToClassFormProps> = ({
         <label className="text-sm font-medium text-gray-700">Class</label>
         <select
           name="student_class_id"
-          value={classId}
-          onChange={(e) => setClassId(e.target.value)}
+          value={formik.values.student_class_id}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           disabled={isLoading}
-          required
-          className="h-11.25 indent-2 border border-black/15 rounded-lg outline-0 disabled:bg-gray-100"
+          className={`h-11.25 indent-2 border rounded-lg outline-0 disabled:bg-gray-100 ${
+            formik.touched.student_class_id && formik.errors.student_class_id
+              ? "border-red-500"
+              : "border-black/15"
+          }`}
         >
           <option value="">Select a class</option>
           {classOptions.map((item) => (
@@ -59,6 +67,11 @@ const AssignStudentToClassForm: React.FC<AssignStudentToClassFormProps> = ({
             </option>
           ))}
         </select>
+        {formik.touched.student_class_id && formik.errors.student_class_id && (
+          <p className="text-red-500 text-xs mt-1">
+            {formik.errors.student_class_id}
+          </p>
+        )}
       </div>
 
       <div className="flex justify-end gap-3 mt-4">
